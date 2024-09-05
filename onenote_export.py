@@ -8,6 +8,7 @@ from fnmatch import fnmatch
 from html.parser import HTMLParser
 from pathlib import Path
 from xml.etree import ElementTree
+from bs4 import BeautifulSoup
 
 import click
 import flask
@@ -200,6 +201,9 @@ def download_pages(graph_client, pages, path, select=None, indent=0):
     pages, select = filter_items(pages, select, 'pages', indent)
     pages = sorted([(page['order'], page) for page in pages])
     level_dirs = [None] * 4
+
+    path.mkdir(parents=True, exist_ok=True)
+
     for order, page in pages:
         level = page['level']
         page_title = sanitize_filename(f'{order} {page["title"]}', platform='auto')
@@ -213,18 +217,27 @@ def download_pages(graph_client, pages, path, select=None, indent=0):
 
 
 def download_page(graph_client, page_url, path, indent=0):
-    out_html = path / 'main.html'
-    if out_html.exists():
-        indent_print(indent, 'HTML file already exists; skipping this page')
-        return
-    path.mkdir(parents=True, exist_ok=True)
+    text_file = str(path) + '.txt'
+    text_file = text_file.replace('cool18.com', '')
+    print(text_file)
+
     response = get(graph_client, page_url, indent=indent)
     if response is not None:
         content = response.text
         indent_print(indent, f'Got content of length {len(content)}')
-        content = download_attachments(graph_client, content, path, indent=indent)
-        with open(out_html, "w", encoding='utf-8') as f:
-            f.write(content)
+        # content = download_attachments(graph_client, content, path, indent=indent)
+        soup = BeautifulSoup(content, 'html.parser')
+        text = soup.get_text()
+        text = text.replace("cool18.com", '')
+        text = text.replace("￼", '')
+        text = text.replace(" 　　", '\n')
+        text = text.replace("￼　　", '\n')
+        text = text.replace("　　", '\n')
+
+
+        # print(text)
+        with open(text_file, "w", encoding='utf-8') as f:
+            f.write(text)
 
 
 @app.route("/getToken")
